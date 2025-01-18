@@ -1,8 +1,10 @@
 chrome.windows.onBoundsChanged.addListener((w) => {
-        if (w.state == 'minimized') {
-            chrome.tabs.query({'index': 0}, (result) => {
-                chrome.tabs.update(result[0].id,  {'active': true});
-            });
-        }
+        chrome.windows.getAll().then((all_windows) => {
+            if (w.state == 'minimized' && w.id == all_windows[0].id) {
+                chrome.tabs.query({'index': 0}, (result) => {
+                    chrome.tabs.update(result[0].id,  {'active': true});
+                });
+            }
+        })
     }
 )
