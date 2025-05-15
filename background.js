@@ -11,28 +11,37 @@ chrome.runtime.onInstalled.addListener(() => {
     });    
 });
 
-//Installing event handler
-chrome.contextMenus.onClicked.addListener(onClickHandler);
+//Installing context menu onClicked handler
+chrome.contextMenus.onClicked.addListener(onContextMenuClickHandler);
 
-function onClickHandler(clickInfo, clickTabInfo) {
-    console.log('Executing onClickHandler');
+function onContextMenuClickHandler(clickInfo, clickTabInfo) {
+    console.log('Executing onContextMenuClickHandler');
+
     if (!clickTabInfo.id || clickTabInfo.id == chrome.tabs.TAB_ID_NONE) {
         console.error('Tab id not found or invalid - aborting!');
         return;
     }
 
-    if (defaultTabs[clickTabInfo.windowId]) {
-        console.log('Current default tab for window %d is %d', 
-            clickTabInfo.windowId,
-            defaultTabs[clickTabInfo.windowId]
-        ); //TODO REMOVE DEBUG !!!
-    } else {
-        console.log('Current default tab for window %d has not been set', 
-            clickTabInfo.windowId
-        );
-    }
+    console.debug('Current default tab for window %d is %d', clickTabInfo.windowId, defaultTabs[clickTabInfo.windowId]);
+
+    console.info('Setting tab %d as default tab for window %d', clickTabInfo.id, clickTabInfo.windowId);
 
     defaultTabs[clickTabInfo.windowId] = clickTabInfo.id;
+}
+
+
+//Installing window onBoundsChanged handler
+chrome.windows.onBoundsChanged.addListener(onBoundsChangedHandler);
+
+function onBoundsChangedHandler(windowInfo) {
+    console.log('Executing onBoundsChangedHandler');
+
+    console.debug('onBoundsChangedHandler received windowInfo %O', windowInfo);
+
+    if (windowInfo.state == 'minimized' && defaultTabs[windowInfo.id]) {
+        console.log('Window %d has been minimized - activating default tab %d', windowInfo.id, defaultTabs[windowInfo.id]); //TODO REMOVE DEBUG !!!
+        chrome.tabs.update(defaultTabs[windowInfo.id], {'active': true});
+    }
 }
 
 
