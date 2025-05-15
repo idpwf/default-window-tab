@@ -1,10 +1,22 @@
-chrome.windows.onBoundsChanged.addListener((w) => {
-        chrome.windows.getAll().then((all_windows) => {
-            if (w.state == 'minimized' && w.id == all_windows[0].id) {
-                chrome.tabs.query({'index': 0}, (result) => {
-                    chrome.tabs.update(result[0].id,  {'active': true});
-                });
-            }
-        })
-    }
-)
+const EXTENSION_ID = "15E660EF-2CB3-411F-BCB6-8F414FDFC28A"
+
+defaultTabs = {}
+
+// TODO
+chrome.contextMenus.create({
+    title: 'Default tab for this window',
+    contexts: ['all'],
+    id: EXTENSION_ID
+});
+
+//install event handler
+chrome.contextMenus.onClicked.addListener(onClickHandler);
+
+function onClickHandler(clickInfo) {
+    console.log("Received clickInfo: " + clickInfo);
+}
+
+//handle tab close
+//handle tab move between windows
+
+
