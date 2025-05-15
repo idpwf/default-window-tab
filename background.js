@@ -1,4 +1,4 @@
-const EXTENSION_ID = "15E660EF-2CB3-411F-BCB6-8F414FDFC28A"
+const EXTENSION_ID = '15E660EF-2CB3-411F-BCB6-8F414FDFC28A'
 
 defaultTabs = {}
 
@@ -45,7 +45,19 @@ function onBoundsChangedHandler(windowInfo) {
 }
 
 
-//handle tab close
+//Installing tab onRemoved (tab closed) handler
+chrome.tabs.onRemoved.addListener(onRemovedHandler);
+
+function onRemovedHandler(tabId, removeInfo) {
+    console.log('Executing onRemovedHandler');
+
+    console.debug('onRemovedHandler received tab closed event for tab %d : %O', tabId, removeInfo);
+
+    if (defaultTabs[removeInfo.windowId] && defaultTabs[removeInfo.windowId] == tabId) {
+        console.info('Default tab for window %d has been closed - unsetting');
+        delete defaultTabs[removeInfo.windowId];
+    }
+}
 
 
 //handle tab move between windows
