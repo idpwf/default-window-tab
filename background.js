@@ -1,6 +1,5 @@
-const EXTENSION_ID = '15E660EF-2CB3-411F-BCB6-8F414FDFC28A'
+// import { getStorage, removeStorage, setStorage } from "./storage";
 
-//TODO move to util
 async function getStorage(key) {
     return chrome.storage.local.get(key.toString()).then((result) => {
         if (result[key]) {
@@ -11,7 +10,6 @@ async function getStorage(key) {
     });
 }
 
-//TODO move to util
 async function setStorage(key, value) {
     var storeObj = {}
     storeObj[key.toString()] = value
@@ -19,22 +17,22 @@ async function setStorage(key, value) {
     return chrome.storage.local.set(storeObj);
 }
 
-//TODO move to util
 async function removeStorage(key) {
     return chrome.storage.local.remove(key.toString());
 }
 
-//TODO move to util
+
+
+const EXTENSION_ID = '15E660EF-2CB3-411F-BCB6-8F414FDFC28A'
+
 async function indicateDefaultTab(isDefaultTab) {
     if (isDefaultTab) {
         chrome.contextMenus.update(EXTENSION_ID, {
-            title: 'Is the default tab',
-            enabled: false
+            title: 'Unset default tab'
         });
     } else {
         chrome.contextMenus.update(EXTENSION_ID, {
-            title: 'Make default tab',
-            enabled: true
+            title: 'Make default tab'
         });
     }
 }
@@ -62,8 +60,20 @@ async function onContextMenuClickHandler(clickInfo, clickTabInfo) {
     }
 
     console.info('Will set tab %d as default tab for window %d', clickTabInfo.id, clickTabInfo.windowId);
-    indicateDefaultTab(true);
-    await setStorage(clickTabInfo.windowId, clickTabInfo.id);
+    //TODO REWRITE PROPERLY ASYNC
+    defaultWindowTab = await getStorage(clickTabInfo.windowId);
+    if (defaultWindowTab) {
+        if (defaultWindowTab == clickTabInfo.id) {
+            await removeStorage(clickTabInfo.windowId);
+            indicateDefaultTab(false);
+        } else {
+            await setStorage(clickTabInfo.windowId, clickTabInfo.id);
+            indicateDefaultTab(true);
+        }
+    } else {
+        await setStorage(clickTabInfo.windowId, clickTabInfo.id);
+        indicateDefaultTab(true);
+    }
 }
 
 
@@ -122,5 +132,23 @@ async function onActivatedHandler(activeInfo) {
     defaultWindowTab = await getStorage(activeInfo.windowId);
     if (defaultWindowTab) {
         indicateDefaultTab(defaultWindowTab == activeInfo.tabId);
+    }
+}
+
+//Installing window focus changed handler
+chrome.windows.onFocusChanged.addListener(onFocusChangedHandler);
+
+async function onFocusChangedHandler(windowId) {
+    console.log('Executing onFocusChangedHandler');
+    
+    if (windowId != chrome.windows.WINDOW_ID_NONE) {
+        defaultWindowTab = await getStorage(windowId);
+        focusedWindowCurrentTab = await chrome.tabs.query({active: true, windowId: windowId});
+        if (!focusedWindowCurrentTab) {
+            console.error('Could not find the active tab in window %d - aborting');
+            return;
+        }
+
+        indicateDefaultTab(focusedWindowCurrentTab[0].id == defaultWindowTab);
     }
 }
