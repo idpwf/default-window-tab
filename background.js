@@ -19,14 +19,31 @@ async function setStorage(key, value) {
     return chrome.storage.local.set(storeObj);
 }
 
+//TODO move to util
 async function removeStorage(key) {
     return chrome.storage.local.remove(key.toString());
+}
+
+//TODO move to util
+async function indicateDefaultTab(isDefaultTab) {
+    if (isDefaultTab) {
+        chrome.contextMenus.update(EXTENSION_ID, {
+            title: 'Is the default tab',
+            enabled: false
+        });
+    } else {
+        chrome.contextMenus.update(EXTENSION_ID, {
+            title: 'Make default tab',
+            enabled: true
+        });
+    }
 }
 
 //Installing context menu item
 chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
         title: 'Make default tab',
+        enabled: true,
         contexts: ['all'],
         id: EXTENSION_ID
     });
@@ -45,6 +62,7 @@ async function onContextMenuClickHandler(clickInfo, clickTabInfo) {
     }
 
     console.info('Will set tab %d as default tab for window %d', clickTabInfo.id, clickTabInfo.windowId);
+    indicateDefaultTab(true);
     await setStorage(clickTabInfo.windowId, clickTabInfo.id);
 }
 
@@ -92,5 +110,17 @@ async function onDetachedHandler(tabId, detachInfo) {
     if (defaultWindowTab && defaultWindowTab == tabId) {
         console.info('Default tab %d has been detached from its window %d, will unset default tab', defaultWindowTab, detachInfo.oldWindowId)
         await removeStorage(detachInfo.oldWindowId);
+    }
+}
+
+//Installing tab activated handler
+chrome.tabs.onActivated.addListener(onActivatedHandler);
+
+async function onActivatedHandler(activeInfo) {
+    console.debug('Executing onActivatedHandler');
+
+    defaultWindowTab = await getStorage(activeInfo.windowId);
+    if (defaultWindowTab) {
+        indicateDefaultTab(defaultWindowTab == activeInfo.tabId);
     }
 }
