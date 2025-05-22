@@ -28,8 +28,28 @@ async function indicateDefaultTab(isDefaultTab) {
         });
     } else {
         chrome.contextMenus.update(EXTENSION_ID, {
-            title: 'Make default tab'
+            title: 'Set default tab'
         });
+    }
+}
+
+async function toggleDefaultTab(windowId, tabId) {
+    //TODO REWRITE PROPERLY ASYNC
+    let defaultWindowTab = await getStorage(windowId);
+    if (defaultWindowTab) {
+        if (defaultWindowTab == tabId) {
+            console.info('Will unset default tab for window %d', windowId);
+            await removeStorage(windowId);
+            indicateDefaultTab(false);
+        } else {
+            console.info('Will update default tab for window %d - tab id %d', windowId, tabId);
+            await setStorage(windowId, tabId);
+            indicateDefaultTab(true);
+        }
+    } else {
+        console.info('Will set default tab for window %d - tab id %d', windowId, tabId);
+        await setStorage(windowId, tabId);
+        indicateDefaultTab(true);
     }
 }
 
@@ -37,7 +57,7 @@ async function indicateDefaultTab(isDefaultTab) {
 //Installing context menu item
 chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
-        title: 'Make default tab',
+        title: 'Set default tab',
         enabled: true,
         contexts: ['all'],
         id: EXTENSION_ID
@@ -54,23 +74,7 @@ async function onContextMenuClickHandler(clickInfo, clickTabInfo) {
         return;
     }
 
-    //TODO REWRITE PROPERLY ASYNC
-    let defaultWindowTab = await getStorage(clickTabInfo.windowId);
-    if (defaultWindowTab) {
-        if (defaultWindowTab == clickTabInfo.id) {
-            console.info('Will unset default tab for window %d', clickTabInfo.windowId);
-            await removeStorage(clickTabInfo.windowId);
-            indicateDefaultTab(false);
-        } else {
-            console.info('Will update default tab for window %d - tab id %d', clickTabInfo.windowId, clickTabInfo.id);
-            await setStorage(clickTabInfo.windowId, clickTabInfo.id);
-            indicateDefaultTab(true);
-        }
-    } else {
-        console.info('Will set default tab for window %d - tab id %d', clickTabInfo.windowId, clickTabInfo.id);
-        await setStorage(clickTabInfo.windowId, clickTabInfo.id);
-        indicateDefaultTab(true);
-    }
+    return toggleDefaultTab(clickTabInfo.windowId, clickTabInfo.id);
 }
 
 
@@ -146,5 +150,21 @@ async function onFocusChangedHandler(windowId) {
         }
 
         indicateDefaultTab(focusedWindowCurrentTab[0].id == defaultWindowTab);
+    }
+}
+
+
+//Installing command (i.e. keyboard shortcut) handler
+chrome.commands.onCommand.addListener(onCommandHandler);
+
+async function onCommandHandler(command) {
+    if (command == 'make-default-tab') {
+        let currentWindow = await chrome.windows.getCurrent();
+        if (currentWindow) {
+            let currentTab = await chrome.tabs.query({active: true, windowId: currentWindow.id});
+            if (currentTab && currentTab[0]) {
+                toggleDefaultTab(currentWindow.id, currentTab[0].id);
+            }
+        }
     }
 }

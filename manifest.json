@@ -2,11 +2,18 @@
     "manifest_version": 3,
     "name": "Default window tab",
     "description": "Allows setting a default tab to be activated when the browser window is minimized.",
-    "version": "2.2",
+    "version": "2.3",
     "permissions": [
         "contextMenus",
-        "storage"
+        "storage",
+        "commands"
     ],
+    "commands": {
+        "make-default-tab": {
+            "suggesged_key": "Alt+Shift+D",
+            "description": "Set or unset the default tab for this browser window"
+        }
+    },
     "background":  {
         "service_worker": "background.js",
         "type": "module"
