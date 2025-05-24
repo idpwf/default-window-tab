@@ -1,7 +1,7 @@
 const EXTENSION_ID = '15E660EF-2CB3-411F-BCB6-8F414FDFC28A'
 
 async function getStorage(key) {
-    return chrome.storage.local.get(key.toString()).then((result) => {
+    return chrome.storage.local.get(key.toString()).then(result => {
         if (result[key]) {
             return result[key];
         } else {
@@ -34,23 +34,15 @@ async function indicateDefaultTab(isDefaultTab) {
 }
 
 async function toggleDefaultTab(windowId, tabId) {
-    //TODO REWRITE PROPERLY ASYNC
-    let defaultWindowTab = await getStorage(windowId);
-    if (defaultWindowTab) {
-        if (defaultWindowTab == tabId) {
+    return getStorage(windowId).then(defaultWindowTab => {
+        if (defaultWindowTab && defaultWindowTab == tabId) {
             console.info('Will unset default tab for window %d', windowId);
-            await removeStorage(windowId);
-            indicateDefaultTab(false);
+            return removeStorage(windowId).then(() => false);
         } else {
-            console.info('Will update default tab for window %d - tab id %d', windowId, tabId);
-            await setStorage(windowId, tabId);
-            indicateDefaultTab(true);
+            console.info('Will set default tab for window %d - tab id %d', windowId, tabId);
+            return setStorage(windowId, tabId).then(() => true);
         }
-    } else {
-        console.info('Will set default tab for window %d - tab id %d', windowId, tabId);
-        await setStorage(windowId, tabId);
-        indicateDefaultTab(true);
-    }
+    }).then((result) => indicateDefaultTab(result));
 }
 
 
@@ -83,12 +75,12 @@ chrome.windows.onBoundsChanged.addListener(onBoundsChangedHandler);
 
 async function onBoundsChangedHandler(windowInfo) {
     if (windowInfo.state == 'minimized') {
-        //TODO REWRITE PROPERLY ASYNC
-        let defaultWindowTab = await getStorage(windowInfo.id);
-        if (defaultWindowTab) {
-            console.info('Will activate default tab for window %d - tab id %d', windowInfo.id, defaultWindowTab);
-            chrome.tabs.update(defaultWindowTab, {'active': true}); 
-        }
+        getStorage(windowInfo.id).then(defaultWindowTab => {
+            if (defaultWindowTab) {
+                console.info('Will activate default tab for window %d - tab id %d', windowInfo.id, defaultWindowTab);
+                return chrome.tabs.update(defaultWindowTab, {'active': true}); 
+            }
+        })
     }
 }
 
@@ -97,13 +89,12 @@ async function onBoundsChangedHandler(windowInfo) {
 chrome.tabs.onRemoved.addListener(onRemovedHandler);
 
 async function onRemovedHandler(tabId, removeInfo) {
-    //TODO REWRITE PROPERLY ASYNC
-    let defaultWindowTab = await getStorage(removeInfo.windowId);
-    if (defaultWindowTab && defaultWindowTab == tabId) {
-        console.info('Default tab for window %d is closing, will unset default tab', removeInfo.windowId);
-        await removeStorage(removeInfo.windowId);
-        indicateDefaultTab(false);
-    }
+    return getStorage(removeInfo.windowId).then(defaultWindowTab => {
+        if (defaultWindowTab && defaultWindowTab == tabId) {
+            console.info('Default tab for window %d is closing, will unset default tab', removeInfo.windowId);
+            return removeStorage(removeInfo.windowId);
+        }
+    }).then(() => indicateDefaultTab(false));
 }
 
 
@@ -111,13 +102,12 @@ async function onRemovedHandler(tabId, removeInfo) {
 chrome.tabs.onDetached.addListener(onDetachedHandler);
 
 async function onDetachedHandler(tabId, detachInfo) {
-    //TODO REWRITE PROPERLY ASYNC
-    let defaultWindowTab = await getStorage(detachInfo.oldWindowId);
-    if (defaultWindowTab && defaultWindowTab == tabId) {
-        console.info('Default tab for window %d has been detached, will unset default tab', detachInfo.oldWindowId)
-        await removeStorage(detachInfo.oldWindowId);
-        indicateDefaultTab(false);
-    }
+    return getStorage(detachInfo.oldWindowId).then(defaultWindowTab => {
+        if (defaultWindowTab && defaultWindowTab == tabId) {
+            console.info('Default tab for window %d has been detached, will unset default tab', detachInfo.oldWindowId)
+            return removeStorage(detachInfo.oldWindowId);
+        }
+    }).then(() => indicateDefaultTab(false));
 }
 
 
@@ -125,13 +115,13 @@ async function onDetachedHandler(tabId, detachInfo) {
 chrome.tabs.onActivated.addListener(onActivatedHandler);
 
 async function onActivatedHandler(activeInfo) {
-    //TODO REWRITE PROPERLY ASYNC
-    let defaultWindowTab = await getStorage(activeInfo.windowId);
-    if (defaultWindowTab) {
-        indicateDefaultTab(defaultWindowTab == activeInfo.tabId);
-    } else {
-        indicateDefaultTab(false);
-    }
+    return getStorage(activeInfo.windowId).then(defaultWindowTab => {
+        if (defaultWindowTab) {
+            return indicateDefaultTab(defaultWindowTab == activeInfo.tabId);
+        } else {
+            return indicateDefaultTab(false);
+        }
+    });
 }
 
 
@@ -140,16 +130,17 @@ chrome.windows.onFocusChanged.addListener(onFocusChangedHandler);
 
 async function onFocusChangedHandler(windowId) {
     if (windowId != chrome.windows.WINDOW_ID_NONE) {
-        //TODO REWRITE PROPERLY ASYNC
-        let defaultWindowTab = await getStorage(windowId);
-        let focusedWindowCurrentTab = await chrome.tabs.query({active: true, windowId: windowId});
+        return Promise.all([getStorage(windowId), chrome.tabs.query({active: true, windowId: windowId})]).then(values => {
+            let defaultWindowTab = values[0];
+            let focusedWindowCurrentTab = values[1];
 
-        if (!focusedWindowCurrentTab || !focusedWindowCurrentTab[0] || !focusedWindowCurrentTab[0].id) {
-            console.error('Could not find the active tab in window %d - aborting');
-            return;
-        }
+            if (!focusedWindowCurrentTab || !focusedWindowCurrentTab[0] || !focusedWindowCurrentTab[0].id) {
+                console.error('Could not find the active tab in window %d - aborting', windowId);
+                return;
+            }
 
-        indicateDefaultTab(focusedWindowCurrentTab[0].id == defaultWindowTab);
+            return indicateDefaultTab(focusedWindowCurrentTab[0].id == defaultWindowTab);
+        });
     }
 }
 
@@ -159,12 +150,14 @@ chrome.commands.onCommand.addListener(onCommandHandler);
 
 async function onCommandHandler(command) {
     if (command == 'make-default-tab') {
-        let currentWindow = await chrome.windows.getCurrent();
-        if (currentWindow) {
-            let currentTab = await chrome.tabs.query({active: true, windowId: currentWindow.id});
-            if (currentTab && currentTab[0]) {
-                toggleDefaultTab(currentWindow.id, currentTab[0].id);
+        return chrome.windows.getCurrent().then((currentWindow) => {
+            if (currentWindow) {
+                chrome.tabs.query({active: true, windowId: currentWindow.id}).then((currentTab) => {
+                    if (currentTab && currentTab[0]) {
+                        return toggleDefaultTab(currentWindow.id, currentTab[0].id);
+                    }
+                });
             }
-        }
+        });
     }
 }
