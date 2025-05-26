@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "Default window tab",
     "description": "Allows setting a default tab to be activated when the browser window is minimized.",
-    "version": "2.4",
+    "version": "2.5",
     "permissions": [
         "contextMenus",
         "storage",
@@ -12,6 +12,10 @@
         "make-default-tab": {
             "suggesged_key": "Alt+Shift+D",
             "description": "Set or unset the default tab for this browser window"
+        },
+        "go-to-opener-tab": {
+            "suggested_key": "Alt+Shift+O",
+            "description": "Activate the opener tab of the current tab"
         }
     },
     "background":  {

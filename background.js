@@ -149,15 +149,30 @@ async function onFocusChangedHandler(windowId) {
 chrome.commands.onCommand.addListener(onCommandHandler);
 
 async function onCommandHandler(command) {
-    if (command == 'make-default-tab') {
-        return chrome.windows.getCurrent().then((currentWindow) => {
-            if (currentWindow) {
-                chrome.tabs.query({active: true, windowId: currentWindow.id}).then((currentTab) => {
-                    if (currentTab && currentTab[0]) {
-                        return toggleDefaultTab(currentWindow.id, currentTab[0].id);
+    switch (command) {
+        case 'make-default-tab':
+            return chrome.windows.getCurrent().then(currentWindow => {
+                if (currentWindow) {
+                    chrome.tabs.query({active: true, windowId: currentWindow.id}).then(currentTab => {
+                        if (currentTab && currentTab[0]) {
+                            return toggleDefaultTab(currentWindow.id, currentTab[0].id);
+                        }
+                    });
+                }
+            });
+
+        case 'go-to-opener-tab':
+            return chrome.windows.getCurrent().then(currentWindow => {
+                chrome.tabs.query({active: true, windowId: currentWindow.id}).then(currentTab => {
+                    if (currentTab && currentTab[0] && currentTab[0].openerTabId) {
+                        console.info('Current tab is %d; will activate its opener tab %d', currentTab[0].id, currentTab[0].openerTabId);
+                        return chrome.tabs.update(currentTab[0].openerTabId, {active: true});
                     }
                 });
-            }
-        });
+            });
+
+        default:
+            console.warn('Unknown command %s received', command);
+            return true;
     }
 }
