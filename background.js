@@ -116,6 +116,8 @@ chrome.tabs.onActivated.addListener(onActivatedHandler);
 
 async function onActivatedHandler(activeInfo) {
     return getStorage(activeInfo.windowId).then(defaultWindowTab => {
+        //The simplified expression is `indicateDefaultTab(defaultWindowTab && defaultWindowTab == activeInfo.tabId)`
+        //But clear readability is more important than saving 2 LOCs
         if (defaultWindowTab) {
             return indicateDefaultTab(defaultWindowTab == activeInfo.tabId);
         } else {
