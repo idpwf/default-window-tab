@@ -47,13 +47,26 @@ async function toggleDefaultTab(windowId, tabId) {
 
 
 //Installing context menu item
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((event) => {
+    console.info('Extension installed');
     chrome.contextMenus.create({
         title: 'Set default tab',
         enabled: true,
         contexts: ['all'],
         id: EXTENSION_ID
     });
+});
+
+
+//Clearing cache of old windows
+self.addEventListener('activate', (event) => {
+    console.info('Extension activated');
+    Promise.all([chrome.storage.local.getKeys(), chrome.windows.getAll().then(windows => {return windows.map(w => w.id)})]).then(([currentKeys, currentWindows]) => {
+            return currentKeys.filter(key => !currentWindows.includes(key));
+        }).then(staleKeys => staleKeys.map(staleKey => {
+            console.warn('Will remove stale key %s from local storage', staleKey);
+            return removeStorage(staleKey);
+        }));
 });
 
 
